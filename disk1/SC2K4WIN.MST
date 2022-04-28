@@ -438,9 +438,9 @@ SUB Install STATIC
 	IF EXEOPT$ = "ON" THEN
 	EXEPATH$=DEST$ + "\"
 	CreateDir DEST$, cmoNone
-	    AddSectionFilesToCopyList "BITMAPS", SrcDir$ + "BITMAPS", EXEPATH$ + "BITMAPS"
-	AddSectionFilesToCopyList "SOUNDS", SrcDir$ + "SOUNDS", EXEPATH$ + "SOUNDS"
-	    AddSectionFilesToCopyList "DATA", SrcDir$ + "DATA", EXEPATH$ + "DATA"
+	    AddSectionFilesToCopyList "BITMAPS", SrcDir$, EXEPATH$ + "BITMAPS"
+	AddSectionFilesToCopyList "SOUNDS", SrcDir$, EXEPATH$ + "SOUNDS"
+	    AddSectionFilesToCopyList "DATA", SrcDir$, EXEPATH$ + "DATA"
 	AddSectionFilesToCopyList "Files", SrcDir$, EXEPATH$
 	ELSE
 	    EXEPATH$=SrcDir$
@@ -451,9 +451,9 @@ SUB Install STATIC
 	IF SCENOPT$ = "ON" THEN
 	    SCENPATH$=DEST$ + "\SCENARIO"
 	    CreateDir DEST$ + "\SCENARIO", cmoNone
-	AddSectionFilesToCopyList "SCENARIO", SrcDir$+ "SCENARIO", SCENPATH$
+	AddSectionFilesToCopyList "SCENARIO", SrcDir$, SCENPATH$
 	ELSE
-	    SCENPATH$=SrcDir$ + "SCENARIO"
+	    SCENPATH$=SrcDir$
     END IF
 
 
@@ -461,9 +461,9 @@ SUB Install STATIC
 	IF CITYOPT$ = "ON" THEN
 	CITYPATH$=DEST$ + "\CITIES"
 	    CreateDir DEST$ + "\CITIES", cmoNone
-	AddSectionFilesToCopyList "CITIES", SrcDir$ + "CITIES", CITYPATH$
+	AddSectionFilesToCopyList "CITIES", SrcDir$, CITYPATH$
 	ELSE
-	    CITYPATH$=SrcDir$ + "CITIES"
+	    CITYPATH$=SrcDir$
     END IF
 
 
@@ -471,15 +471,15 @@ SUB Install STATIC
 	IF ARTOPT$ = "ON" THEN
 	URKARTPATH$=DEST$ + "\SCURKART"
 	    CreateDir DEST$ + "\SCURKART", cmoNone
-	    AddSectionFilesToCopyList "SCURKART", SrcDir$ + "SCURKART", URKARTPATH$
+	    AddSectionFilesToCopyList "SCURKART", SrcDir$, URKARTPATH$
 	ELSE
-	URKARTPATH$=SrcDir$ + "SCURKART"
+	URKARTPATH$=SrcDir$
     END IF
 
 
 '' Add the WING action no matter what.
 ''  NB: no "CreateDir" for this stuff - KO
-    AddSectionFilesToCopyList "WING", SrcDir$ + "WING", WINSYSDIR$
+    AddSectionFilesToCopyList "WING", SrcDir$, WINSYSDIR$
 
 
 '' Do the copy
