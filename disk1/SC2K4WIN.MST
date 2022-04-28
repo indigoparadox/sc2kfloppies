@@ -341,11 +341,6 @@ DOWING:
 DOINSTALL:
     Install
 
-REGISTER:
-    ''run ereg.
-    sz$ = SrcDir$ + "goodies\ereg\ereg.exe"
-    run sz$
-
 QUIT:
     ON ERROR GOTO ERRQUIT
     IF ERR = 0 THEN
