@@ -1,0 +1,558 @@
+'**************************************************************************
+'*                       SimCity 2000 For Windows CD-ROM Setup file
+'*                       By Chris Weiss
+'*                       Last Edited 3:41 PM 7/26/95
+'*
+'*
+'*                       Adopted, Refined, Improved, Debugged, etc. by
+'*                       Kevin O'Hare
+'*
+'*                       Some portions (c) 1994 Microsoft Corp.
+'**************************************************************************
+
+'$DEFINE DEBUG  ''Define for script development/debugging
+
+' This should set a flag if the command line /NO_CHECK was included
+' This must occur before calling setupapi, or any command line args get
+' lost
+
+GLOBAL Dont_Check_For_Space
+COMMAND$=UCASE$(COMMAND$)
+IF INSTR(COMMAND$, "NO_CHECK") > 0 THEN 
+	Dont_Check_For_Space = 1
+	sz$=MID$(COMMAND$,1,(INSTR(COMMAND$,"NO_CHECK")-1))
+	COMMAND$=sz$
+END IF
+
+IF INSTR(COMMAND$, "NOCHECK") > 0 THEN 
+	Dont_Check_For_Space = 1
+	sz$=MID$(COMMAND$,1,(INSTR(COMMAND$,"NOCHECK")-1))
+	COMMAND$=sz$
+END IF
+
+' End checking
+
+'$INCLUDE 'setupapi.inc'
+'$INCLUDE 'msdetect.inc'
+
+''Dialog ID's
+CONST WELCOME       = 100
+CONST ASKQUIT       = 200
+CONST DESTPATH      = 300
+CONST EXITFAILURE   = 400
+CONST REGNAG        = 500
+CONST READMENAG     = 501
+CONST SIXTEENCOLS   = 502
+CONST EXITQUIT      = 600
+CONST EXITSUCCESS   = 700
+CONST OPTIONS       = 800
+CONST OPTIONHELP    = 801
+CONST APPHELP       = 900
+CONST MODEHELP      = 904
+CONST TOOBIG        = 6300
+CONST BADPATH       = 6400
+CONST PATHEXISTS    = 6500
+CONST CONFNAME      = 7300
+CONST GETUSER       = 7500
+CONST BADNAME       = 7700
+CONST BADVIDEO      = 7701
+CONST BADCOMPANY    = 7702
+CONST BADMODE       = 7704
+
+
+'' Some Constant Values for Maximized Install Window
+CONST WS_VISIBLE      =&H10000000
+CONST WS_BORDER       =&H00800000
+CONST WS_CLIPCHILDREN =&H02000000
+CONST GWL_STYLE = -16
+CONST SW_SHOWMAXIMIZED = 3
+'' End Maximized Window Install Constants
+
+
+'' Bitmap ID
+CONST LOGO = 1
+
+GLOBAL DEST$        ''Default destination directory.
+GLOBAL USERNAME$    ''User registration name.
+GLOBAL COMPANYNAME$ ''Company Name 
+GLOBAL WINDIR$
+GLOBAL WINSYSDIR$
+GLOBAL WING1$
+GLOBAL SrcDir$
+GLOBAL required&
+
+'' Global boolean ("ON"/"OFF") strings for each of the sets of files to install
+GLOBAL EXEOPT$
+GLOBAL CITYOPT$
+GLOBAL ARTOPT$
+GLOBAL SCENOPT$
+
+'' Global directory strings
+WINDIR$ = GetWindowsDir()
+WINSYSDIR$ = GetWindowsSysDir ()
+
+'' Global Source Drive string
+SrcDir$ = GetSymbolValue("STF_SRCDIR")
+
+'' Installation directory sizes
+EXESIZE& =      9500000
+SCENSIZE& =     2200000
+CITIESSIZE& =   4400000
+SCURKARTSIZE& = 2000000
+		      
+			
+DECLARE SUB Install
+DECLARE FUNCTION MakePath (szDir$, szFile$) AS STRING
+DECLARE FUNCTION VflatdPresent LIB "iniupd.DLL" AS INTEGER
+
+'' Some Subroutine Declarations for Maximized Install Window
+DECLARE FUNCTION ShowWindow LIB "user.exe" (hWnd%, iShow%) AS INTEGER
+DECLARE FUNCTION SetWindowLong LIB "user.exe" (hWnd%, offset%, style&) AS LONG
+'' End Declarations for Maximized Window Install
+
+
+INIT:
+'' This is where we set it to maximize the install window
+hWnd%=HwndFrame() 
+ i1&=SetWindowLong(hWnd%,GWL_STYLE,WS_VISIBLE+WS_BORDER+WS_CLIPCHILDREN) 
+ j1%=ShowWindow(hWnd%,SW_SHOWMAXIMIZED) 
+'' End of Maximize stuff
+
+    CUIDLL$ = "mscuistf.dll"            ''Custom user interface dll
+    HELPPROC$ = "FHelpDlgProc"          ''Help dialog procedure
+
+    SetBitmap CUIDLL$, LOGO
+    SetTitle " SimCity 2000(R) for Windows Setup"
+
+    szInf$ = GetSymbolValue("STF_SRCINFPATH")
+    IF szInf$ = "" THEN
+		szInf$ = GetSymbolValue("STF_CWDDIR") + "SETUP.INF"
+    END IF
+    ReadInfFile szInf$
+
+    DEST$ = "C:\SC2K4WIN"
+
+ 
+'$IFDEF DEBUG
+    i% = SetSizeCheckMode(scmOnIgnore)    '' could use scmOff; def = scmOnFatal
+    WinDrive$ = MID$(GetWindowsDir, 1, 1)
+    IF IsDriveValid(WinDrive$) = 0 THEN
+	i% = DoMsgBox("Windows drive ('"+WinDrive$+"') is not a valid drive.", "DEBUG", MB_TASKMODAL+MB_ICONHAND+MB_OK)
+	GOTO QUIT
+    END IF
+'$ENDIF ''DEBUG
+
+
+	IF Dont_Check_For_Space = 1 THEN
+		i% = DoMsgBox("NO_CHECK specified, skipping Free Space and Valid Drive Checks. I will not be held responsible for my actions!", "Verification Status", MB_TASKMODAL+MB_ICONHAND+MB_OK)
+	END IF
+
+
+'' This just tosses up a nice welcome screen
+WELCOME:
+    sz$ = UIStartDlg(CUIDLL$, WELCOME, "FInfoDlgProc", APPHELP, HELPPROC$)
+    IF sz$ = "CONTINUE" THEN
+		UIPop 1
+    ELSE
+		GOSUB ASKQUIT
+		GOTO WELCOME
+    END IF
+
+
+' Preset all four checkboxes in the options dialog box to "ON"
+SETOPTION:
+    CHECKITEMSIN$ = "CheckItemsIn"
+    FOR i% = 1 TO 4 STEP 1
+	AddListItem CHECKITEMSIN$, "ON"
+    NEXT i%
+
+
+' Do the options dialog box, and get four boolean ("ON"/"OFF") strings
+' for each of the different sets of files to install.
+GETOPTION:
+    sz$ = UIStartDlg(CUIDLL$, OPTIONS, "FCheckDlgProc", OPTIONHELP, HELPPROC$)
+	UIPop 1
+    IF sz$ = "CONTINUE" THEN
+		EXEOPT$=GetListItem ("CheckItemsOut", 1)
+		CITYOPT$=GetListItem ("CheckItemsOut", 2)
+		ARTOPT$=GetListItem ("CheckItemsOut", 3)
+		SCENOPT$=GetListItem ("CheckItemsOut", 4)
+		required& = 0
+		IF EXEOPT$ = "ON" THEN
+			required& = (required& + EXESIZE&)
+		END IF
+		IF CITYOPT$ = "ON" THEN
+			required& = (required& + CITIESSIZE&)
+		END IF
+		IF ARTOPT$ = "ON" THEN
+			required& = (required& + SCURKARTSIZE&)
+		END IF
+		IF SCENOPT$ = "ON" THEN
+			required& = (required& + SCENSIZE&)
+		END IF
+'		i% = DoMsgBox("available is " + STR$(GetFreeSpaceForDrive(MID$(DEST$,1,1)) ) + "required is " + STR$(required&),"test Message", MB_OK+MB_TASKMODAL+MB_ICONHAND)
+    ELSEIF sz$ = "REACTIVATE" THEN
+		GOTO GETOPTION
+    ELSE
+		GOSUB ASKQUIT
+		GOTO GETOPTION
+    END IF
+
+	RemoveSymbol(CHECKITEMSIN$)
+
+'$IFDEF DEBUG
+''  Debugging - verify options
+''      i% = DoMsgBox("EXE " + EXEOPT$ + " CITY " + CITYOPT$ + " ART " + ARTOPT$ + " SCEN " + SCENOPT$, "Setup Message", MB_OK+MB_TASKMODAL+MB_ICONHAND)
+'$ENDIF ''DEBUG
+
+    
+'' Check the Windows mode - if user isn't not in Enhanced mode, quit
+CHECKMODE:
+    i% = GetWindowsMode ()
+    IF i% < 2 THEN
+		sz$ = UIStartDLG(CUIDLL$, BADMODE, "FInfoDlgProc", MODEHELP, HELPPROC$)
+		IF SZ$ = "CONTINUE" THEN
+			UIPop 1
+		ELSE
+			UIPop 1
+			GOSUB ASKQUIT
+			GOTO CHECKMODE
+		END IF
+    END IF
+
+
+'' Input user name and company name
+GETTHEUSER:
+    sz$ = UIStartDlg(CUIDLL$, GETUSER, "FNameOrgDlgProc", APPHELP, HELPPROC$)
+    USERNAME$ = GetSymbolValue("NameOut")
+    COMPANYNAME$ = GetSymbolValue("OrgOut")
+
+    IF sz$ = "CONTINUE" THEN
+		IF LEN(USERNAME$) < 1 OR LEN(USERNAME$) > 22 OR MID$(USERNAME$,1,1) = " " THEN
+		GOSUB BADNAME
+		    GOTO GETTHEUSER
+		END IF
+		IF LEN(COMPANYNAME$) > 22 OR MID$(COMPANYNAME$,1,1) = " " THEN
+		    GOSUB BADCOMPANY
+		    GOTO GETTHEUSER
+		END IF
+		UIPop 1
+    ELSEIF sz$ = "REACTIVATE" THEN
+		GOTO GETTHEUSER
+    ELSEIF sz$ = "BACK" THEN
+		UIPop 1
+		GOTO WELCOME
+	ELSE
+		GOSUB ASKQUIT
+		GOTO GETTHEUSER
+    END IF
+
+GETPATH:
+    SetSymbolValue "EditTextIn", DEST$
+    SetSymbolValue "EditFocus", "END"
+GETPATHL1:
+    sz$ = UIStartDlg(CUIDLL$, DESTPATH, "FEditDlgProc", APPHELP, HELPPROC$)
+    DEST$ = GetSymbolValue("EditTextOut")
+
+    IF sz$ = "CONTINUE" THEN
+		IF MID$(DEST$, LEN(DEST$), 1) = "\" THEN
+		    DEST$ = MID$(DEST$,1,LEN(DEST$) - 1)
+		END IF
+		UIPop 1
+
+		' Check space requirements
+		IF Dont_Check_For_Space = 0 THEN
+			IF IsDirWritable(DEST$) = 0 THEN
+			    GOSUB BADPATH
+			GOTO GETPATHL1
+			END IF
+			''temp$ = "Free Space is " + str$(GetFreeSpaceForDrive(MID$(DEST$,1,1)))
+			''i% = DoMsgBox(temp$, "Setup Message", MB_OK+MB_TASKMODAL+MB_ICONHAND)
+	
+			' Check free space
+
+			IF GetFreeSpaceForDrive(MID$(DEST$,1,1)) < required& THEN
+			    GOSUB TOOBIG
+'                               Now that we have a free space check in the script, return
+'                               to GETOPTION instead of GETPATHL1
+'                       GOTO GETPATHL1
+				GOTO GETOPTION
+			END IF
+
+			' Does it exist?
+
+			IF DoesFileExist(DEST$ + "\SC2000W.EXE", FemExists) = 1 THEN
+				SetSymbolValue "ConfirmTextIn", DEST$
+				sz$ = UIStartDlg(CUIDLL$, PATHEXISTS, "FConfirmDlgProc", 0, "")
+			IF sz$ = "EXIT" THEN
+					UIPopAll
+					ERROR STFQUIT
+				ELSEIF sz$ = "BACK" THEN
+					UIPop 1
+					GOTO GETTHEUSER
+				ELSEIF sz$ = "REACTIVATE" THEN
+					GOTO CONFIRMALL
+			ELSE
+					UIPop 1
+				END IF
+			END IF
+		END IF
+	' (end of >IF sz$ = "CONTINUE"<)
+    ELSEIF sz$ = "REACTIVATE" THEN
+		GOTO GETPATHL1
+    ELSEIF sz$ = "BACK" THEN
+		UIPop 1
+		GOTO GETTHEUSER
+    ELSE
+		GOSUB ASKQUIT
+		GOTO GETPATH
+    END IF
+
+
+
+CONFIRMALL:
+    SetSymbolValue "ConfirmTextIn", USERNAME$
+    AddListItem "ConfirmTextIn", COMPANYNAME$
+    AddListItem "ConfirmTextIn", DEST$
+    sz$ = UIStartDlg(CUIDLL$, CONFNAME, "FConfirmDlgProc", 0, "")
+    IF sz$ = "EXIT" THEN
+	UIPopAll
+	ERROR STFQUIT
+    ELSEIF sz$ = "BACK" THEN
+	UIPop 1
+	GOTO GETTHEUSER
+    ELSEIF sz$ = "REACTIVATE" THEN
+	GOTO CONFIRMALL
+    ELSE
+	UIPop 1
+    END IF
+
+
+DOWING:
+' This portion installs the DVA.386 driver on machines in Enhanced Mode
+    IF VflatdPresent() = 0 THEN
+	    CreateSysIniKeyValue GetWindowsDir + "system.ini", "386Enh", "device", GetWindowsSysDir+"dva.386", cmoOverwrite
+	bInstallDVA% = 1
+      END IF
+
+	WING1$ = "WinG"
+	RemoveIniSection "WIN.INI", wing1$, CmoNone
+
+DOINSTALL:
+    Install
+
+REGISTER:
+    ''run ereg.
+    sz$ = SrcDir$ + "goodies\ereg\ereg.exe"
+    run sz$
+
+QUIT:
+    ON ERROR GOTO ERRQUIT
+    IF ERR = 0 THEN
+		dlg% = EXITSUCCESS
+    ELSEIF ERR = STFQUIT THEN
+		dlg% = EXITQUIT
+    ELSE
+		dlg% = EXITFAILURE
+    END IF
+
+QUITL1:
+    sz$ = UIStartDlg(CUIDLL$, dlg%, "FInfo0DlgProc", 0, "")
+    IF sz$ = "REACTIVATE" THEN
+		GOTO QUITL1
+    END IF
+    UIPop 1
+    END
+
+ERRQUIT:
+    i% = DoMsgBox("Setup sources were corrupted!  Please call Maxis Technical Support.", "Setup Message", MB_OK+MB_TASKMODAL+MB_ICONHAND)
+    END
+
+
+BADPATH:
+    sz$ = UIStartDlg(CUIDLL$, BADPATH, "FInfo0DlgProc", 0, "")
+    IF sz$ = "REACTIVATE" THEN
+	GOTO BADPATH
+    END IF
+    UIPop 1
+    RETURN
+
+BADNAME:
+    sz$ = UIStartDlg(CUIDLL$, BADNAME, "FInfo0DlgProc", 0, "")
+    IF sz$ = "REACTIVATE" THEN
+	GOTO BADNAME
+    END IF
+    UIPop 1
+    RETURN
+
+BADCOMPANY:
+    sz$ = UIStartDlg(CUIDLL$, BADCOMPANY, "FInfo0DlgProc", 0, "")
+    IF sz$ = "REACTIVATE" THEN
+	GOTO BADCOMPANY
+    END IF
+    UIPop 1
+    RETURN
+
+
+TOOBIG:
+    sz$ = UIStartDlg(CUIDLL$, TOOBIG, "FInfo0DlgProc", 0, "")
+    IF sz$ = "REACTIVATE" THEN
+	GOTO TOOBIG
+    END IF
+    UIPop 1
+    RETURN
+
+
+ASKQUIT:
+    sz$ = UIStartDlg(CUIDLL$, ASKQUIT, "FQuitDlgProc", 0, "")
+
+    IF sz$ = "EXIT" THEN
+	UIPopAll
+	ERROR STFQUIT
+    ELSEIF sz$ = "REACTIVATE" THEN
+	GOTO ASKQUIT
+    ELSE
+	UIPop 1
+    END IF
+    RETURN
+
+
+
+'**
+'** Purpose:
+'**     Builds the copy list and performs all installation operations.
+'** Arguments:
+'**     none.
+'** Returns:
+'**     none.
+'*************************************************************************
+SUB Install STATIC
+
+    ClearCopyList
+    
+
+'' NB:  Took out the creation of the log file and the writing of the
+''              "may have had to create directory" strings for all these. - KO
+
+
+    CopyFile WinDir$ + "win.ini", DEST$ + "\win.INI", cmoNone, 0
+    CopyFile WinDir$ + "system.ini", DEST$ + "\system.INI", cmoNone, 0
+    i% = DoMsgBox("Your WIN.INI and SYSTEM.INI files have been backed up to your " + DEST$ + " directory.", "Setup Message", MB_OK+MB_TASKMODAL+MB_ICONHAND)
+
+'' If EXEOPT$ = "ON", user wanted to copy the EXEs, bitmaps, sounds & data to the HD.
+	IF EXEOPT$ = "ON" THEN
+	EXEPATH$=DEST$ + "\"
+	CreateDir DEST$, cmoNone
+	    AddSectionFilesToCopyList "BITMAPS", SrcDir$ + "BITMAPS", EXEPATH$ + "BITMAPS"
+	AddSectionFilesToCopyList "SOUNDS", SrcDir$ + "SOUNDS", EXEPATH$ + "SOUNDS"
+	    AddSectionFilesToCopyList "DATA", SrcDir$ + "DATA", EXEPATH$ + "DATA"
+	AddSectionFilesToCopyList "Files", SrcDir$, EXEPATH$
+	ELSE
+	    EXEPATH$=SrcDir$
+    END IF
+
+
+'' If SCENOPT$ = "ON", then user wanted to copy the Scenarios to the HD.
+	IF SCENOPT$ = "ON" THEN
+	    SCENPATH$=DEST$ + "\SCENARIO"
+	    CreateDir DEST$ + "\SCENARIO", cmoNone
+	AddSectionFilesToCopyList "SCENARIO", SrcDir$+ "SCENARIO", SCENPATH$
+	ELSE
+	    SCENPATH$=SrcDir$ + "SCENARIO"
+    END IF
+
+
+'' If CITYOPT$ = "ON", then user wanted to copy the Cities to the HD.
+	IF CITYOPT$ = "ON" THEN
+	CITYPATH$=DEST$ + "\CITIES"
+	    CreateDir DEST$ + "\CITIES", cmoNone
+	AddSectionFilesToCopyList "CITIES", SrcDir$ + "CITIES", CITYPATH$
+	ELSE
+	    CITYPATH$=SrcDir$ + "CITIES"
+    END IF
+
+
+'' If ARTOPT$ = "ON", then user wanted to copy the SCURK Art to the HD.
+	IF ARTOPT$ = "ON" THEN
+	URKARTPATH$=DEST$ + "\SCURKART"
+	    CreateDir DEST$ + "\SCURKART", cmoNone
+	    AddSectionFilesToCopyList "SCURKART", SrcDir$ + "SCURKART", URKARTPATH$
+	ELSE
+	URKARTPATH$=SrcDir$ + "SCURKART"
+    END IF
+
+
+'' Add the WING action no matter what.
+''  NB: no "CreateDir" for this stuff - KO
+    AddSectionFilesToCopyList "WING", SrcDir$ + "WING", WINSYSDIR$
+
+
+'' Do the copy
+    CopyFilesInCopyList
+
+
+'' SC2k Win part of INI
+    ini$ = MakePath(WINDIR$, "SC2K4WIN.INI")
+    CreateIniKeyValue ini$, "REGISTRATION", "Mayor Name", USERNAME$, cmoOverwrite
+    CreateIniKeyValue ini$, "REGISTRATION", "Company Name", COMPANYNAME$, cmoOverwrite
+    CreateIniKeyValue ini$, "PATHS", "Home", EXEPATH$, cmoOverwrite
+    CreateIniKeyValue ini$, "PATHS", "Scenarios", SCENPATH$, cmoOverwrite
+    CreateIniKeyValue ini$, "PATHS", "Graphics", EXEPATH$ + "BITMAPS", cmoOverwrite
+    CreateIniKeyValue ini$, "PATHS", "Music", EXEPATH$ + "SOUNDS", cmoOverwrite
+    CreateIniKeyValue ini$, "PATHS", "SaveGame", CITYPATH$, cmoOverwrite
+    CreateIniKeyValue ini$, "PATHS", "Cities", CITYPATH$, cmoOverwrite
+    CreateIniKeyValue ini$, "PATHS", "Tilesets", EXEPATH$ + "DATA", cmoOverwrite
+    CreateIniKeyValue ini$, "PATHS", "Data", EXEPATH$ + "DATA", cmoOverwrite
+    CreateIniKeyValue ini$, "PATHS", "Goodies", SrcDir$ + "GOODIES", cmoOverwrite  '' KO added for SC2K Win3.1 Special Edition
+    CreateIniKeyValue ini$, "LOCALIZE", "Language", "USA", cmoOverwrite
+    CreateIniKeyValue ini$, "WINDOWS", "Edit Window Position", "0 0 0 0", cmoOverwrite
+    CreateIniKeyValue ini$, "WINDOWS", "Toolbar Position", "0 0", cmoOverwrite
+    CreateIniKeyValue ini$, "OPTIONS", "Speed", "Normal", cmoOverwrite
+    CreateIniKeyValue ini$, "OPTIONS", "Sound", "On", cmoOverwrite
+    CreateIniKeyValue ini$, "OPTIONS", "Music", "On", cmoOverwrite
+    CreateIniKeyValue ini$, "OPTIONS", "AutoGoto", "On", cmoOverwrite
+    CreateIniKeyValue ini$, "OPTIONS", "Auto Budget", "Off", cmoOverwrite
+    CreateIniKeyValue ini$, "OPTIONS", "No Disasters", "Off", cmoOverwrite
+
+
+'' SCURK part of INI
+    CreateIniKeyValue ini$, "SCURK", "CurrentTileset", URKARTPATH$ + "\original.mif", cmoOverwrite
+    CreateIniKeyValue ini$, "SCURK", "Sound", "ON", cmoOverwrite
+    CreateIniKeyValue ini$, "SCURK", "UrkHome", EXEPATH$, cmoOverwrite
+    CreateIniKeyValue ini$, "VERSION", "Urk", "1.0", cmoOverwrite
+    CreateIniKeyValue ini$, "VERSION", "SC2k", "1.2", cmoOverwrite
+
+    CreateProgmanGroup "Maxis", "", cmoNone
+    ShowProgmanGroup  "Maxis", 1, cmoNone
+    CreateProgmanItem "Maxis", "SimCity 2000 for Windows", EXEPATH$ + "SC2000W.EXE", "", cmoOverwrite
+    CreateProgmanItem "Maxis", "SimCity 2000 CD-ROM ReadMe", EXEPATH$ + "README.WRI", "", cmoOverwrite
+    CreateProgmanItem "Maxis", "SimCity 2000 Help", EXEPATH$ + "SC2USA.HLP", "", cmoOverwrite
+    CreateProgmanItem "Maxis", "Urban Renewal Kit", EXEPATH$ + "SCURKW.EXE", "", cmoOverwrite
+    CreateProgmanItem "Maxis", "Urban Renewal Kit Help", EXEPATH$ + "SCURK.HLP", "", cmoOverwrite
+''  CreateProgmanItem "Maxis", "WillTV", EXEPATH$ + "WILLTV31.EXE", "", cmoOverwrite
+    
+END SUB
+
+
+
+'**
+'** Purpose:
+'**     Appends a file name to the end of a directory path,
+'**     inserting a backslash character as needed.
+'** Arguments:
+'**     szDir$  - full directory path (with optional ending "\")
+'**     szFile$ - filename to append to directory
+'** Returns:
+'**     Resulting fully qualified path name.
+'*************************************************************************
+FUNCTION MakePath (szDir$, szFile$) STATIC AS STRING
+    IF szDir$ = "" THEN
+	MakePath = szFile$
+    ELSEIF szFile$ = "" THEN
+	MakePath = szDir$
+    ELSEIF MID$(szDir$, LEN(szDir$), 1) = "\" THEN
+	MakePath = szDir$ + szFile$
+    ELSE
+	MakePath = szDir$ + "\" + szFile$
+    END IF
+END FUNCTION

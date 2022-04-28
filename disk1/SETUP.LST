@@ -1,0 +1,22 @@
+[Params]
+	WndTitle   = SimCity 2000 Special Edition for Windows Setup
+	WndMess    = Initializing Setup...
+	TmpDirSize = 500
+	TmpDirName = ~msstfqf.t
+	CmdLine    = _mstest sc2k4win.mst /C "/S %s %s"
+	DrvModName = DSHELL
+
+[Files]
+	sc2k4win.mst  = sc2k4win.mst
+	setup.inf  = setup.inf
+	setupapi.inc = setupapi.inc
+	msdetect.inc = msdetect.inc
+	mscomstf.dll = mscomstf.dll
+	msinsstf.dll = msinsstf.dll
+	msuilstf.dll = msuilstf.dll
+	msshlstf.dll = msshlstf.dll
+	mscuistf.dll = mscuistf.dll
+	msdetstf.dll = msdetstf.dll
+	iniupd.dll = iniupd.dll
+	_mstest.exe  = _mstest.exe
+
