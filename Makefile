@@ -5,7 +5,7 @@
 UNCOMP := 4,tiles.db
 
 # Start at disk [2-] since disk 1 has no compressed files.
-PAIRS_RAW := $(filter-out $(UNCOMP),$(shell grep -oP "(?<=\s)[2-9],[^,]*" disk1/SETUP.INF))
+PAIRS_RAW := $(filter-out $(UNCOMP),$(shell grep -oP "(?<=\s)[2-9],[^,]*" disk1/setup.inf))
 
 FILES_COMP := $(foreach PAIR,$(PAIRS_RAW),disk$(shell echo "$(PAIR)" | awk 'BEGIN { FS="," }; {print $$1}')/$(shell echo "$(PAIR)" | awk 'BEGIN { FS="," }; {print $$2}' | sed 's/[a-z0-9]$$/_/')) disk4/tiles.db_
 
