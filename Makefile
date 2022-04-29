@@ -1,11 +1,12 @@
 
 # vim: set noexpandtab:
 
-# Exclude this from pairs because the 2-char extension is handled weird.
-UNCOMP := 4,tiles.db
+# Exclude tiles.db from pairs because the 2-char extension is handled weird and the setup files since they're uncompressed.
+UNCOMP := 1,iniupd.dll 1,mscomstf.dll 1,mscuistf.dll 1,msdetect.inc 1,msdetstf.dll 1,msinsstf.dll 1,msregdb.inc 1,msshlstf.dll 1,_mstest.exe 1,msuilstf.dll 1,readme.wri 1,sc2k4win.mst 1,setupapi.inc 1,setup.exe 1,setup.inf 1,setup.lst 4,tiles.db
 
-# Start at disk [2-] since disk 1 has no compressed files.
-PAIRS_RAW := $(filter-out $(UNCOMP),$(shell grep -oP "(?<=\s)[2-9],[^,]*" disk1/setup.inf))
+PAIRS_RAW := $(filter-out $(UNCOMP),$(shell grep -oP "(?<=\s)[1-9],[^,]*" disk1/setup.inf))
+
+# Re-add tiles.db with its proper compressed name.
 
 FILES_COMP := $(foreach PAIR,$(PAIRS_RAW),disk$(shell echo "$(PAIR)" | awk 'BEGIN { FS="," }; {print $$1}')/$(shell echo "$(PAIR)" | awk 'BEGIN { FS="," }; {print $$2}' | sed 's/[a-z0-9]$$/_/')) disk4/tiles.db_
 
@@ -25,7 +26,14 @@ FLOPPY_DENSITY := 2880
 
 # Targets
 
+.PHONY: clean
+
 all: $(FILES_COMP)
+
+clean:
+	rm -f $(FILES_COMP)
+	for i in 2 3 4 5 6 7 8 9; do if [ -d disk$$i ]; then rmdir disk$$i; fi; done
+	rm *.img
 
 # Directory Creation Rule
 
@@ -44,9 +52,13 @@ $(foreach DISK,$(DISKS),$(eval $(call DISK_IMG_RULE,$(DISK))))
 
 # Compression Rules
 
+disk1/%.sc_: source/scenario/%.scn | disk1/.stamp
+	$(MSCOMPRESS) $<
+	mv -v $<_ $@
+
 disk5/%.sc_: source/scenario/%.scn | disk5/.stamp
 	$(MSCOMPRESS) $<
-	mv -v $< $@
+	mv -v $<_ $@
 
 disk2/%.bm_: source/bitmaps/%.bmp | disk2/.stamp
 	$(MSCOMPRESS) $<
