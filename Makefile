@@ -2,13 +2,18 @@
 # vim: set noexpandtab:
 
 # Exclude tiles.db from pairs because the 2-char extension is handled weird and the setup files since they're uncompressed.
-UNCOMP := 1,iniupd.dll 1,mscomstf.dll 1,mscuistf.dll 1,msdetect.inc 1,msdetstf.dll 1,msinsstf.dll 1,msregdb.inc 1,msshlstf.dll 1,_mstest.exe 1,msuilstf.dll 1,readme.wri 1,sc2k4win.mst 1,setupapi.inc 1,setup.exe 1,setup.inf 1,setup.lst 4,tiles.db
+UNCOMP := 1,iniupd.dll 1,mscomstf.dll 1,mscuistf.dll 1,msdetect.inc 1,msdetstf.dll 1,msinsstf.dll 1,msregdb.inc 1,msshlstf.dll 1,_mstest.exe 1,msuilstf.dll 1,readme.wri 1,setupapi.inc 1,setup.exe 4,tiles.db
 
-PAIRS_RAW := $(filter-out $(UNCOMP),$(shell grep -oP "(?<=\s)[1-9],[^,]*" disk1/setup.inf))
+UNCOMP_CFG := 1,sc2k4win.mst 1,setup.inf 1,setup.lst
+
+PAIRS_RAW := $(filter-out $(UNCOMP) $(UNCOMP_CFG),$(shell grep -oP "(?<=\s)[1-9],[^,]*" disk1/setup.inf))
 
 # Re-add tiles.db with its proper compressed name.
-
 FILES_COMP := $(foreach PAIR,$(PAIRS_RAW),disk$(shell echo "$(PAIR)" | awk 'BEGIN { FS="," }; {print $$1}')/$(shell echo "$(PAIR)" | awk 'BEGIN { FS="," }; {print $$2}' | sed 's/[a-z0-9]$$/_/')) disk4/tiles.db_
+
+FILES_UNCOMP := $(foreach PAIR,$(UNCOMP),disk$(shell echo "$(PAIR)" | awk 'BEGIN { FS="," }; {print $$1}')/$(shell echo "$(PAIR)" | awk 'BEGIN { FS="," }; {print $$2}'))
+
+FILES_UNCOMP_CFG := $(foreach PAIR,$(UNCOMP_CFG),disk$(shell echo "$(PAIR)" | awk 'BEGIN { FS="," }; {print $$1}')/$(shell echo "$(PAIR)" | awk 'BEGIN { FS="," }; {print $$2}'))
 
 DISKS := 1 2 3 4 5 6 7 8 9
 
@@ -32,6 +37,7 @@ all: $(FILES_COMP) disk1.img disk2.img disk3.img disk4.img disk5.img disk6.img d
 
 clean:
 	rm -f $(FILES_COMP)
+	rm -f $(FILES_UNCOMP)
 	for i in 2 3 4 5 6 7 8 9; do if [ -d disk$$i ]; then rmdir disk$$i; fi; done
 	rm *.img
 
@@ -44,13 +50,29 @@ disk%/.stamp:
 # Image Generation Rules
 
 define DISK_IMG_RULE
+ifeq ($(1),1)
+disk$(1).img: $$(filter disk$(1)/%,$$(FILES_UNCOMP) $$(FILES_UNCOMP_CFG))
+else
 disk$(1).img: $$(filter disk$(1)/%,$$(FILES_COMP))
+endif
 	$(DD) if=/dev/zero bs=512 count=$(FLOPPY_DENSITY) of="$$@" && $(MKFS_VFAT) "$$@"
 	$(MCOPY) -spmv -i "$$@" $$^ "::"
 endef
 $(foreach DISK,$(DISKS),$(eval $(call DISK_IMG_RULE,$(DISK))))
 
 # Compression Rules
+
+disk1/%.dll: source/%.dll
+	cp -v $< $@
+
+disk1/%.inc: source/%.inc
+	cp -v $< $@
+
+disk1/%.exe: source/%.exe
+	cp -v $< $@
+
+disk1/%.wri: source/%.wri
+	cp -v $< $@
 
 disk1/%.sc_: source/scenario/%.scn | disk1/.stamp
 	$(MSCOMPRESS) $<
