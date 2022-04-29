@@ -1,16 +1,15 @@
 
 # vim: set noexpandtab:
 
+# Exclude this from pairs because the 2-char extension is handled weird.
 UNCOMP := 4,tiles.db
 
 # Start at disk [2-] since disk 1 has no compressed files.
 PAIRS_RAW := $(filter-out $(UNCOMP),$(shell grep -oP "(?<=\s)[2-9],[^,]*" disk1/SETUP.INF))
 
-#FILES_COMP := $(foreach FILE_ITEM,$(FILES_RAW),disk$(shell grep -oP "(?<=\s)[0-9](?=, $(FILE_ITEM))" disk1/SETUP.INF)/$(shell echo $(FILE_ITEM) | sed 's/[a-z]$$/_/'))
-
 FILES_COMP := $(foreach PAIR,$(PAIRS_RAW),disk$(shell echo "$(PAIR)" | awk 'BEGIN { FS="," }; {print $$1}')/$(shell echo "$(PAIR)" | awk 'BEGIN { FS="," }; {print $$2}' | sed 's/[a-z0-9]$$/_/')) disk4/tiles.db_
 
-DISKS := 2 3 4 5 6 7 8 9
+DISKS := 1 2 3 4 5 6 7 8 9
 
 # Commands
 
@@ -21,27 +20,29 @@ MKFS_VFAT := /sbin/mkfs.vfat
 
 # Configuration
 
+# 1.44 MB in 512k sectors
 FLOPPY_DENSITY := 2880
 
 # Targets
 
 all: $(FILES_COMP)
 
+# Directory Creation Rule
+
 disk%/.stamp:
 	mkdir -p -v $(shell dirname $@)
 	touch $@
+
+# Image Generation Rules
 
 define DISK_IMG_RULE
 disk$(1).img: $$(filter disk$(1)/%,$$(FILES_COMP))
 	$(DD) if=/dev/zero bs=512 count=$(FLOPPY_DENSITY) of="$$@" && $(MKFS_VFAT) "$$@"
 	$(MCOPY) -spmv -i "$$@" $$^ "::"
 endef
-
 $(foreach DISK,$(DISKS),$(eval $(call DISK_IMG_RULE,$(DISK))))
 
-#disk%.img: $(filter disk%/,$(FILES_COMP))
-#	$(DD) if=/dev/zero bs=512 count=$(FLOPPY_DENSITY) of="$@" && $(MKFS_VFAT) "$@"
-#	$(MCOPY) -spmv -i "$@" $^ "::"
+# Compression Rules
 
 disk5/%.sc_: source/scenario/%.scn | disk5/.stamp
 	$(MSCOMPRESS) $<
