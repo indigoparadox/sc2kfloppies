@@ -28,7 +28,7 @@ FLOPPY_DENSITY := 2880
 
 .PHONY: clean
 
-all: $(FILES_COMP)
+all: $(FILES_COMP) disk1.img disk2.img disk3.img disk4.img disk5.img disk6.img disk7.img disk8.img disk9.img
 
 clean:
 	rm -f $(FILES_COMP)
