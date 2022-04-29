@@ -1,12 +1,12 @@
 
-= Dependencies =
+# Dependencies
 
 - mscompress
 - dd
 - mkfs.vfat
 - mtools
 
-= Usage =
+# Usage
 
 Grab WIN31 subdirectory from the SimCity 2000 Special Edition CD-ROM and put it in this project directory. Rename it from "WIN31" to "source".
 
