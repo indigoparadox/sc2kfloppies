@@ -189,12 +189,12 @@
 	5,lasvegas.scn,,,, 1994-12-16,,,, !READONLY,,,,,, 127176,,,,,
 	5,malibu.scn,,,, 1994-12-16,,,, !READONLY,,,,,, 81825,,,,,
 	5,manhatta.scn,,,, 1994-12-16,,,, !READONLY,,,,,, 110994,,,,,
-	1,oakland.scn,,,, 1994-12-16,,,, !READONLY,,,,,, 112508,,,,,
-	1,paris.scn,,,, 1995-03-15,,,, !READONLY,,,,,, 120088,,,,,
-	1,portland.scn,,,, 1994-12-16,,,, !READONLY,,,,,, 124781,,,,,
-	1,sanfranc.scn,,,, 1994-12-16,,,, !READONLY,,,,,, 97989,,,,,
-	1,siliconv.scn,,,, 1994-12-16,,,, !READONLY,,,,,, 123991,,,,,
-	1,washingt.scn,,,, 1994-12-16,,,, !READONLY,,,,,, 118084,,,,,
+	5,oakland.scn,,,, 1994-12-16,,,, !READONLY,,,,,, 112508,,,,,
+	5,paris.scn,,,, 1995-03-15,,,, !READONLY,,,,,, 120088,,,,,
+	5,portland.scn,,,, 1994-12-16,,,, !READONLY,,,,,, 124781,,,,,
+	5,sanfranc.scn,,,, 1994-12-16,,,, !READONLY,,,,,, 97989,,,,,
+	5,siliconv.scn,,,, 1994-12-16,,,, !READONLY,,,,,, 123991,,,,,
+	5,washingt.scn,,,, 1994-12-16,,,, !READONLY,,,,,, 118084,,,,,
 
 [SCURKART]
 	6,1900.mif,,,, 1996-02-12,,,, !READONLY,,,,,, 278372,,,,,
